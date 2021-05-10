@@ -1,7 +1,8 @@
 (ns maven-experiments.core
-  (:require [clojure.java.shell :as shell]
-            [clojure.set]
-            [clojure.string :as str])
+  (:require [clojure.java.shell :as sh]
+            [clojure.set :as set]
+            [clojure.string :as str]
+            [clojure.edn :as edn])
   (:gen-class))
 
 (defn -main
@@ -9,25 +10,25 @@
   [path]
   (defn enrich [output thread-count]
     (let [time-result (-> output
-                          (:err) ; for some reason time writes to err
+                          :err ; for some reason time writes to err
                           (str/split #"\n"))
           enriched (->>  time-result ; could have used as-> to change parameter position. Maybe there is a better way with the transducer?
                          (drop 1) ; there is a newline at the beginning of the time command output
-                         (vec)
+                         vec
                          (map #(str/split % #"\t"))
                          (into output))
           trimmed (-> enriched
-                      (clojure.set/rename-keys {:err :res "real" :real "user" :user "sys" :sys})
+                      (set/rename-keys {:err :res "real" :real "user" :user "sys" :sys})
                       (dissoc :out))] 
       (assoc trimmed :threads thread-count)))
   (defn run-experiment [path threads]
-    (shell/sh "/bin/sh" "-c" (str "cd " path " && time mvn -T " threads " clean install > /dev/null")))
-  (let [threads 4
-        experiments 100]
+    (sh/sh "/bin/sh" "-c" (str "cd " path " && time mvn -T " threads " clean install > /dev/null")))
+  (let [threads 100
+        experiments 10]
     (loop [experiment-count 0
            thread-count 1]
       (cond
-        (and (= thread-count (inc threads)) (= experiment-count experiments)) nil ; break out
+        (and (= thread-count (inc threads)) (= experiment-count experiments)) :done ; break out
         (= thread-count (inc threads)) (recur experiment-count 0)
         (= experiment-count experiments) (recur 0 thread-count)
         :else (let [run-result (run-experiment path thread-count)
