@@ -5,19 +5,13 @@
             [clojure.edn :as edn])
   (:gen-class))
 
-(defn- threads-done? [thread-count thread-max]
-  (> thread-count  thread-max)) ; > since we want to finish the run for this number of threads
-
-(defn- experiments-done? [experiment-count experiment-max]
-  (>= experiment-count experiment-max))
-
 (defn- time->miliseconds
   "Takes a time output (eg. 0m49.355s) and converts it to miliseconds"
   [s]
   (let [[*m* *s*] (str/split s  #"m")
         m (read-string *m*)
         s (read-string (first (str/split *s* #"s")))]
-  (int (+ (* m 60000) (* s 1000)))))
+    (int (+ (* m 60000) (* s 1000)))))
 
 (defn- enrich [output thread-count]
   (let [time-result (-> output
@@ -46,19 +40,11 @@
 
 (defn -main
   "Run a timing experiment for maven"
-  [project-path output-file thread-max experiment-max]
-  (loop [thread-count 1 ; todo: replace with map on range pairs
-         experiment-count 0]
-    (cond
-      (and (threads-done? thread-count thread-max) (experiments-done? experiment-count experiment-max))
-      :done ; break out
-      
-      (experiments-done? experiment-count experiment-max)
-      (recur (inc thread-count) 0) ; run experiments for the next number of threads
-
-      :else
-      (let [run-result (run-experiment! project-path thread-count)
-            record (enrich run-result thread-count)]
-        (spit output-file (str record "\n") :append true)
-        (recur thread-count (inc experiment-count)))))
+  [project-path output-file threads experiments]
+  (let [iterations (mapcat #(repeat experiments %) (range 1 (inc threads)))]
+    (dorun ; force evaluation
+     (map #(let [run-result (run-experiment! project-path %)
+                 record (enrich run-result %)]
+             (spit output-file (str record "\n") :append true))
+          iterations)))
   (println "Done"))
