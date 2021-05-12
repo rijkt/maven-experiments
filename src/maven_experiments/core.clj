@@ -35,16 +35,21 @@
   (sh/sh "/bin/sh" "-c"
          (str "cd " path " && time mvn -T " threads " clean install > /dev/null")))
 
+(defn- experiment-runner
+  "Returns a fn that takes a single param - the number of threads to use"
+  [project-path output-file]
+  #(let [run-result (run-experiment! project-path %)
+         record (enrich run-result %)]
+     (spit output-file (str record "\n") :append true)))
+
 (defn- load-experiments! [path]
   (map edn/read-string (str/split (slurp path) #"\n")))
 
 (defn -main
   "Run a timing experiment for maven"
   [project-path output-file threads experiments]
-  (let [iterations (mapcat #(repeat experiments %) (range 1 (inc threads)))]
+  (let [iterations (mapcat #(repeat experiments %) (range 1 (inc threads)))
+        experiment-runner  (experiment-runner project-path output-file)]
     (dorun ; force evaluation
-     (map #(let [run-result (run-experiment! project-path %)
-                 record (enrich run-result %)]
-             (spit output-file (str record "\n") :append true))
-          iterations)))
+     (map experiment-runner iterations)))
   (println "Done"))
