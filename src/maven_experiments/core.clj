@@ -45,6 +45,15 @@
 (defn- load-experiments! [path]
   (map edn/read-string (str/split (slurp path) #"\n")))
 
+(defn- average [times]
+  (double (/ (reduce + times) (count times))))
+
+(defn- calc-average [results]
+  (->> results
+       (group-by :threads)
+       (map (fn [[k v]] [k (map :real v)]))
+       (map (fn [[k v]] [k (apply average [v])]))))
+
 (defn -main
   "Run a timing experiment for maven"
   [project-path output-file threads experiments]
