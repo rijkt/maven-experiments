@@ -33,7 +33,7 @@
 
 (defn- run-experiment! [path threads]
   (sh/sh "/bin/sh" "-c"
-         (str "cd " path " && time mvn -T " threads " clean install > /dev/null")))
+         (str "cd " path " && time mvn -T " threads " clean install > /dev/null 2>&1")))
 
 (defn- experiment-runner
   "Returns a fn that takes a single param - the number of threads to use"
